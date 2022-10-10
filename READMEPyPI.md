@@ -1,5 +1,3 @@
-# SEETM 1.0.1 Release
-
 ### SEETM (Sinhala-English Equivalent Token Mapper) allows creating equivalent token maps and replace them with a base token to avoid OOV tokens and generate a single feature for all equivalent tokens in a Sinhala-English code-switching dataset in rasa-based conversational AIs.
 
 ## Features
@@ -23,5 +21,5 @@
 - [eng-to-ipa](https://pypi.org/project/eng-to-ipa/) pip package ([GitHub](https://github.com/mphilli/English-to-IPA))
 
 📒 Docs: https://seetm.github.io  
-📦 PyPi: https://pypi.org/project/seetn/1.0.1/  
+📦 PyPi: https://pypi.org/project/seetm/1.0.1/  
 🪵 Full Changelog: https://github.com/SEETM-NLP/seetm/blob/main/CHANGELOG.md
