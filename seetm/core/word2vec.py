@@ -1,7 +1,7 @@
 import logging
 import os.path
 import time
-from typing import List, Text, Optional
+from typing import List, Text
 
 import gensim.models
 from gensim.models import Word2Vec
@@ -15,7 +15,6 @@ from seetm.shared.exceptions.core import (
 )
 from seetm.utils.io import get_timestamp_str
 from seetm.utils.text_preprocessing import tokenize
-
 
 logger = logging.getLogger(__name__)
 gensim.models.word2vec.logger.level = 60
@@ -70,6 +69,12 @@ class Word2VecModel:
 
         model: Word2Vec = self.model
         return model.wv.most_similar(token)
+
+    def token_similarity(self, t1: Text, t2: Text) -> float:
+        if not self.model:
+            raise Word2VecModelNotFoundException()
+        model: Word2Vec = self.model
+        return model.wv.similarity(w1=t1, w2=t2)
 
 
 class EpochProgress(CallbackAny2Vec):

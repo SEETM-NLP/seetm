@@ -1,7 +1,7 @@
 # SEETM
 PACKAGE_NAME = "seetm"
 PACKAGE_NAME_PYPI = "seetm"
-PACKAGE_VERSION = "1.0.1"
+PACKAGE_VERSION = "1.1.0"
 PACKAGE_VERSION_LONG = f'SEETM Version: {PACKAGE_VERSION}'
 LANGUAGES_SUPPORTED = ['en', 'si']
 README_PYPI = "READMEPyPI.md"
@@ -216,4 +216,4 @@ class ConfigType:
 
 # EXPORTABLE
 DEFAULT_EXPORTABLE_PATH = "./seetm_exports/"
-DEFAULT_TOKENIZER_PERSIST_PATH = "./seetm_exports/tokenizer_mappings.json"
+DEFAULT_TOKENIZER_PERSIST_PATH = "seetm_exports/tokenizer_mappings.txt"
