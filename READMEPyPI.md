@@ -21,5 +21,5 @@
 - [eng-to-ipa](https://pypi.org/project/eng-to-ipa/) pip package ([GitHub](https://github.com/mphilli/English-to-IPA))
 
 📒 Docs: https://seetm.github.io  
-📦 PyPi: https://pypi.org/project/seetm/1.0.1/  
+📦 PyPi: https://pypi.org/project/seetm/1.1.0/  
 🪵 Full Changelog: https://github.com/SEETM-NLP/seetm/blob/main/CHANGELOG.md

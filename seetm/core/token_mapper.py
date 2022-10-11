@@ -40,7 +40,24 @@ class TokenMapper:
         self.case_sensitive = case_sensitive
         self.export = export
         self.quiet_mode = quiet_mode
+        self.token_to_token_mapper = TokenToTokenMapper(case_sensitive=self.case_sensitive)
+        self.en_to_phonetics_mapper = EnglishToPhoneticsMapper()
         logger.debug('Initialized the SEETM mapper')
+
+    def exists(self, data_instance: Text):
+        if self.method == MappingMethod.IPA:
+            return ipa.isin_cmu(data_instance)
+        elif self.method == MappingMethod.RULE_BASED:
+            return data_instance in self.token_to_token_mapper.get_mappables()
+        else:
+            raise InvalidMappingMethodException()
+
+    def get_token_to_token_maps(self):
+        if self.method == MappingMethod.RULE_BASED:
+            return self.token_to_token_mapper.get_maps()
+        else:
+            logger.warning("only RULE BASED maps are retrievable")
+            return dict()
 
     def map_and_persist(self):
         raise NotImplementedError()
@@ -61,14 +78,12 @@ class TokenMapper:
                 raise InvalidDataInstanceException()
 
             if self.method == MappingMethod.IPA:
-                en_to_phonetics_mapper = EnglishToPhoneticsMapper()
-
                 # tokenize
                 tokens = tokenize(data_instance)
 
                 # replacing from user-provided pronunciations
                 tokens = [
-                    en_to_phonetics_mapper.map(token=token)
+                    self.en_to_phonetics_mapper.map(token=token)
                     if len(EN_PATTERN.findall(token)) == 1 else token
                     for token in tokens
                 ]
@@ -116,8 +131,7 @@ class TokenMapper:
                 return mapped_text, mapped_token_list
 
             elif self.method == MappingMethod.RULE_BASED:
-                token_to_token_mapper = TokenToTokenMapper(case_sensitive = self.case_sensitive)
-                mapped_text = token_to_token_mapper.map(text=data_instance)
+                mapped_text = self.token_to_token_mapper.map(text=data_instance)
 
                 return mapped_text
             else:

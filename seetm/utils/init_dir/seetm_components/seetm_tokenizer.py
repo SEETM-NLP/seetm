@@ -1,4 +1,3 @@
-import json
 import logging
 from copy import deepcopy
 from typing import Any, Dict, List, Text
@@ -14,7 +13,9 @@ from seetm.shared.constants import (
     MappingMethod,
     Config,
     InterfaceType,
-    DEFAULT_TOKENIZER_PERSIST_PATH, FilePermission, Encoding,
+    DEFAULT_TOKENIZER_PERSIST_PATH,
+    FilePermission,
+    Encoding,
 )
 from seetm.utils.config import get_init_configs
 
@@ -26,7 +27,7 @@ class SEETMTokenizer(Tokenizer):
         # Case sensitivity
         "case_sensitive": True,
         # Persisting mappings
-        "persist": False
+        "persist": True
     }
 
     # the following language should not be tokenized using the WhitespaceTokenizer
@@ -39,7 +40,7 @@ class SEETMTokenizer(Tokenizer):
 
         self.emoji_pattern = rasa.utils.io.get_emoji_regex()
         self.case_sensitive = component_config["case_sensitive"] if "case_sensitive" in component_config else True
-        self.persist_mapped = component_config["persist"] if "persist" in component_config else False
+        self.persist_mapped = component_config["persist"] if "persist" in component_config else self.defaults["persist"]
         self.seetm_configs = get_init_configs(
             config_path=Config.DEFAULT_CONFIG_PATH,
             method=MappingMethod.RULE_BASED,
@@ -60,20 +61,12 @@ class SEETMTokenizer(Tokenizer):
             rasa.shared.utils.io.raise_warning("Persisting mapped instances may affect "
                                                "the training duration of the model")
             try:
-                seetm_tokenizer_mappings = {
-                    "mapped_instances": []
-                }
                 with open(
                         DEFAULT_TOKENIZER_PERSIST_PATH,
                         encoding=Encoding.UTF8,
                         mode=FilePermission.WRITE
-                ) as seetm_tokenizer_mappings_file:
-                    json.dump(
-                        seetm_tokenizer_mappings,
-                        seetm_tokenizer_mappings_file,
-                        ensure_ascii=False,
-                        indent=4
-                    )
+                ):
+                    pass
             except Exception as e:
                 logger.error("Error occurred while initializing the mapping persisting source. "
                              "Training will be resumed without persisting maps.")
@@ -91,42 +84,26 @@ class SEETMTokenizer(Tokenizer):
 
     def tokenize(self, message: Message, attribute: Text) -> List[Token]:
         text = message.get(attribute)
-        previous_text = deepcopy(text)
+        source_text = deepcopy(text)
 
         # SEETM Mapping
         text = self.token_mapper.map(data_instance=text)
-        
+
         # Persisting mapped instances if requested
         try:
-            if self.persist_mapped:
-                with open(
-                        file=DEFAULT_TOKENIZER_PERSIST_PATH,
-                        mode=FilePermission.READ,
-                        encoding=Encoding.UTF8
-                ) as seetm_tokenizer_mappings_file:
-                    seetm_tokenizer_mappings = json.load(fp=seetm_tokenizer_mappings_file)
-
-                seetm_tokenizer_mappings["mapped_instances"] = [
-                    *seetm_tokenizer_mappings["mapped_instances"],
-                    {
-                        "instance": previous_text,
-                        "mapped_instance": text
-                    }
-                ]
+            if self.persist_mapped and source_text != text:
                 with open(
                         DEFAULT_TOKENIZER_PERSIST_PATH,
                         encoding=Encoding.UTF8,
-                        mode=FilePermission.WRITE
+                        mode="a+"
                 ) as seetm_tokenizer_mappings_file:
-                    json.dump(
-                        seetm_tokenizer_mappings,
-                        seetm_tokenizer_mappings_file,
-                        ensure_ascii=False,
-                        indent=4
-                    )
+                    seetm_tokenizer_mappings_file.write(f"source_instance: {source_text}\n"
+                                                        f"mapped_instance: {text}\n\n")
+
+                logger.info(f"\nPersisted:\nSource: {source_text}\nMapped:{text}")
         except Exception as e:
-            logger.debug("Error occurred while persisting mapped instances. "
-                         f"Training will be resumed without persisting maps. {e}")
+            rasa.shared.utils.io.raise_warning("Error occurred while persisting mapped instances. "
+                                               f"Training will be resumed without persisting maps. {e}")
 
         # we need to use regex instead of re, because of
         # https://stackoverflow.com/questions/12746458/python-unicode-regular-expression-matching-failing-with-some-unicode-characters

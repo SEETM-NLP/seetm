@@ -273,6 +273,11 @@ class SEETMEvaluator:
 
                 # train
                 ipa_model.train()
+                nlu_exact_matches = 0
+                ipa_exact_matches = 0
+                nlu_similarities = list()
+                ipa_similarities = list()
+
                 for token, test_token in eval_tokens_dict.items():
                     mapped_token = self._map(token)
 
@@ -282,18 +287,50 @@ class SEETMEvaluator:
                     print(f"Token: {token}")
                     print(f"Mapped: {mapped_token}")
                     print(f"Target: {test_token}")
+
+                    if token in nlu_model.vocabulary and test_token in nlu_model.vocabulary:
+                        nlu_sim = nlu_model.token_similarity(t1=token, t2=test_token)
+                        nlu_similarities.append(nlu_sim)
+                        if nlu_sim == 1:
+                            nlu_exact_matches += 1
+                    else:
+                        nlu_sim = "(One or more tokens are not present in the NLU model vocabulary)"
+
+                    if mapped_token in ipa_model.vocabulary and test_token in ipa_model.vocabulary:
+                        ipa_sim = ipa_model.token_similarity(t1=mapped_token, t2=test_token)
+                        ipa_similarities.append(ipa_sim)
+                        if ipa_sim == 1:
+                            ipa_exact_matches += 1
+                    else:
+                        ipa_sim = "(One or more tokens are not present in the IPA model vocabulary)"
+
                     print(f"Similarity before Mapping (Token - Target): "
-                          f"{nlu_model.cosine_similarity(instances=[token, test_token])}")
+                          f"{nlu_sim}")
                     print(f"Similarity after Mapping (Mapped Token - Target): "
-                          f"{ipa_model.cosine_similarity(instances=[mapped_token, test_token])}")
+                          f"{ipa_sim}")
                     print("\n\n")
+
+                token_length = len(eval_tokens_dict.keys())
+                average_nlu_similarity = sum(nlu_similarities)/len(nlu_similarities) if len(nlu_similarities) > 0 else 0
+                average_ipa_similarity = sum(ipa_similarities)/len(ipa_similarities) if len(ipa_similarities) > 0 else 0
+
+                print(f"Tokens tested in total: {token_length}")
+                print(f"Average NLU similarity (without IPA): {average_nlu_similarity}")
+                print(f"Average IPA similarity (with IPA): {average_ipa_similarity}")
+                print(f"Exact NLU matches (without IPA): {nlu_exact_matches}")
+                print(f"Exact IPA matches (with IPA): {ipa_exact_matches}")
                 exit("Exiting...")
 
             elif self.method == MappingMethod.RULE_BASED:
-                raise NotImplementedError()  # TODO
-
                 nlu_rules_mapped_example_list = list()
-                for example in track(nlu_example_list, description="Mapping NLU to Rules:"):
+
+                nlu_example_list = self._wrap_progress(
+                    iterable=nlu_example_list,
+                    description=f"{'Mapping Equivalent tokens to Base:':{self.progress_description_width}}",
+                    total=len(nlu_example_list)
+                )
+
+                for example in nlu_example_list:
                     mapped_example = self._map(instance=example)
                     if isinstance(mapped_example, tuple):
                         mapped_example = mapped_example[0]
@@ -306,8 +343,73 @@ class SEETMEvaluator:
                 )
 
                 # train
-                nlu_model.train()
                 rule_based_model.train()
+
+                nlu_exact_matches = 0
+                rule_exact_matches = 0
+                nlu_similarities = list()
+                rule_based_similarities = list()
+                unmappable = list()
+
+                token_to_token_maps = self.token_mapper.get_token_to_token_maps()
+
+                for base_token, eq_tokens in token_to_token_maps.items():
+                    base_token = base_token.strip()
+
+                    for eq_token in eq_tokens:
+                        eq_token = eq_token.strip()
+
+                        if base_token in [eq_token]:
+                            continue
+
+                        if len(base_token.split()) > 1 or len(eq_token.split()) > 1:
+                            continue
+
+                        if base_token not in rule_based_model.vocabulary:
+                            unmappable.append([base_token, eq_token])
+                            continue
+
+                        print(f"Base Token: {base_token}")
+                        print(f"Equivalent Token: {eq_token}")
+
+                        if base_token in nlu_model.vocabulary and eq_token in nlu_model.vocabulary:
+                            nlu_sim = nlu_model.token_similarity(t1=base_token, t2=eq_token)
+                            nlu_similarities.append(nlu_sim)
+                            if nlu_sim == 1:
+                                nlu_exact_matches += 1
+                        else:
+                            nlu_sim = "(One or more tokens are not in NLU model"
+
+                        mapped_token = self._map(eq_token)
+                        print(f"Mapped Token: {mapped_token}")
+
+                        if base_token in rule_based_model.vocabulary and mapped_token in rule_based_model.vocabulary:
+                            rule_sim = rule_based_model.token_similarity(t1=base_token, t2=mapped_token)
+                            rule_based_similarities.append(rule_sim)
+                            if rule_sim == 1:
+                                rule_exact_matches += 1
+                        else:
+                            rule_sim = "(One or more tokens are not in Rule-based (Mapping) model"
+
+                        print(f"Similarity before Mapping (Token - Target): "
+                              f"{nlu_sim}")
+                        print(f"Similarity after Mapping (Mapped Token - Target): "
+                              f"{rule_sim}")
+                        print("\n\n")
+
+                token_length = len(eval_tokens_dict.keys())
+                average_nlu_similarity = sum(nlu_similarities) / len(nlu_similarities) if len(
+                    nlu_similarities) > 0 else 0
+                average_ipa_similarity = sum(rule_based_similarities) / len(rule_based_similarities) if len(
+                    rule_based_similarities) > 0 else 0
+
+                print(f"Tokens mapped in total: {token_length}")
+                print(f"Average NLU similarity (without Maps): {average_nlu_similarity}")
+                print(f"Average Rule-based similarity (with Maps): {average_ipa_similarity}")
+                print(f"Exact NLU matches (without Maps): {nlu_exact_matches}")
+                print(f"Exact Rule matches (with Maps): {rule_exact_matches}")
+                print(f"Unmappable Tokens:\n[{', '.join([f'[{t}, {e}]' for t,e in unmappable])}]")
+                exit("Exiting...")
 
             else:
                 InvalidEvaluationMethodException()
